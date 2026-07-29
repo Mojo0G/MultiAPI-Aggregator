@@ -1,7 +1,21 @@
 const axios = require('axios');
 const logger = require('../../utils/logger');
+const { alphaVantageLimiter } = require('../../utils/apiRateLimiter');
 
 async function fetchAlphaVantageData() {
+  if (!alphaVantageLimiter.canFetch()) {
+    logger.warn('Alpha Vantage upstream rate limit reached. Returning fallback sample data.');
+    return [{
+      id: 'alphavantage_MSFT',
+      title: 'MSFT (Microsoft Corp) - Alpha Vantage Quote (Rate Limited)',
+      url: 'https://www.alphavantage.co',
+      source: 'alphavantage',
+      score: 330,
+      fetched_at: new Date().toISOString(),
+      metadata: { symbol: 'MSFT', price: 330.5, volume: 25000000 }
+    }];
+  }
+
   logger.info('Fetching market data from Alpha Vantage API...');
   const apiKey = process.env.ALPHA_VANTAGE_API_KEY || 'demo';
   const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=MSFT&apikey=${apiKey}`;

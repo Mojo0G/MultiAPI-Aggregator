@@ -1,7 +1,21 @@
 const axios = require('axios');
 const logger = require('../../utils/logger');
+const { tiingoLimiter } = require('../../utils/apiRateLimiter');
 
 async function fetchTiingoData() {
+  if (!tiingoLimiter.canFetch()) {
+    logger.warn('Tiingo upstream rate limit reached. Returning fallback sample data.');
+    return [{
+      id: 'tiingo_AAPL',
+      title: 'AAPL (Apple Inc) - Tiingo Daily Price (Rate Limited)',
+      url: 'https://api.tiingo.com',
+      source: 'tiingo',
+      score: 188,
+      fetched_at: new Date().toISOString(),
+      metadata: { symbol: 'AAPL', close: 188.5, high: 190.0, low: 187.5, volume: 50000000 }
+    }];
+  }
+
   logger.info('Fetching market data from Tiingo API...');
   const token = process.env.TIINGO_API_KEY || 'demo';
   const url = `https://api.tiingo.com/tiingo/daily/aapl/prices?token=${token}`;

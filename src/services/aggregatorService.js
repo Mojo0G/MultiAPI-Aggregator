@@ -1,5 +1,5 @@
 const { fetchTwelveData } = require('./fetchers/twelveDataFetcher');
-const { fetchKiteData } = require('./fetchers/kiteFetcher');
+const { fetchFmpData } = require('./fetchers/fmpFetcher');
 const { fetchAlphaVantageData } = require('./fetchers/alphavantageFetcher');
 const { fetchTiingoData } = require('./fetchers/tiingoFetcher');
 const recordModel = require('../models/recordModel');
@@ -8,11 +8,11 @@ const logger = require('../utils/logger');
 
 const aggregatorService = {
   fetchAllAndStore: async () => {
-    logger.info('Starting market data aggregation from Twelve Data, Kite, Alpha Vantage, and Tiingo...');
+    logger.info('Starting market data aggregation from Twelve Data, FMP, Alpha Vantage, and Tiingo...');
 
     const results = await Promise.allSettled([
       fetchTwelveData(),
-      fetchKiteData(),
+      fetchFmpData(),
       fetchAlphaVantageData(),
       fetchTiingoData()
     ]);
@@ -27,12 +27,12 @@ const aggregatorService = {
       logger.warn('Twelve Data fetch failed:', results[0].reason?.message);
     }
 
-    // Kite
+    // FMP
     if (results[1].status === 'fulfilled') {
-      logger.info(`Kite fetch successful: ${results[1].value.length} items`);
+      logger.info(`FMP fetch successful: ${results[1].value.length} items`);
       allRecords.push(...results[1].value);
     } else {
-      logger.warn('Kite fetch failed:', results[1].reason?.message);
+      logger.warn('FMP fetch failed:', results[1].reason?.message);
     }
 
     // Alpha Vantage
@@ -55,7 +55,7 @@ const aggregatorService = {
       await recordModel.saveManyRecords(allRecords);
       await cache.del('trending_all');
       await cache.del('trending_twelvedata');
-      await cache.del('trending_kite');
+      await cache.del('trending_fmp');
       await cache.del('trending_alphavantage');
       await cache.del('trending_tiingo');
     }
