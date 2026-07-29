@@ -1,14 +1,14 @@
-const { fetchFinageData } = require('./fetchers/finageFetcher');
+const { fetchTwelveData } = require('./fetchers/twelveDataFetcher');
 const { fetchKiteData } = require('./fetchers/kiteFetcher');
 const { fetchAlphaVantageData } = require('./fetchers/alphavantageFetcher');
-const { fetchFinsignalsData } = require('./fetchers/finsignalsFetcher');
+const { fetchTiingoData } = require('./fetchers/tiingoFetcher');
 
 async function checkSourceHealth() {
   const sources = [
-    { name: 'finage', fetchFn: fetchFinageData },
+    { name: 'twelvedata', fetchFn: fetchTwelveData },
     { name: 'kite', fetchFn: fetchKiteData },
     { name: 'alphavantage', fetchFn: fetchAlphaVantageData },
-    { name: 'finsignals', fetchFn: fetchFinsignalsData }
+    { name: 'tiingo', fetchFn: fetchTiingoData }
   ];
 
   const results = [];

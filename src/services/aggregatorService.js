@@ -1,30 +1,30 @@
-const { fetchFinageData } = require('./fetchers/finageFetcher');
+const { fetchTwelveData } = require('./fetchers/twelveDataFetcher');
 const { fetchKiteData } = require('./fetchers/kiteFetcher');
 const { fetchAlphaVantageData } = require('./fetchers/alphavantageFetcher');
-const { fetchFinsignalsData } = require('./fetchers/finsignalsFetcher');
+const { fetchTiingoData } = require('./fetchers/tiingoFetcher');
 const recordModel = require('../models/recordModel');
 const cache = require('../config/redis');
 const logger = require('../utils/logger');
 
 const aggregatorService = {
   fetchAllAndStore: async () => {
-    logger.info('Starting market data aggregation from Finage, Kite, Alpha Vantage, and FinSignals...');
+    logger.info('Starting market data aggregation from Twelve Data, Kite, Alpha Vantage, and Tiingo...');
 
     const results = await Promise.allSettled([
-      fetchFinageData(),
+      fetchTwelveData(),
       fetchKiteData(),
       fetchAlphaVantageData(),
-      fetchFinsignalsData()
+      fetchTiingoData()
     ]);
 
     const allRecords = [];
 
-    // Finage
+    // Twelve Data
     if (results[0].status === 'fulfilled') {
-      logger.info(`Finage fetch successful: ${results[0].value.length} items`);
+      logger.info(`Twelve Data fetch successful: ${results[0].value.length} items`);
       allRecords.push(...results[0].value);
     } else {
-      logger.warn('Finage fetch failed:', results[0].reason?.message);
+      logger.warn('Twelve Data fetch failed:', results[0].reason?.message);
     }
 
     // Kite
@@ -43,21 +43,21 @@ const aggregatorService = {
       logger.warn('Alpha Vantage fetch failed:', results[2].reason?.message);
     }
 
-    // FinSignals
+    // Tiingo
     if (results[3].status === 'fulfilled') {
-      logger.info(`FinSignals fetch successful: ${results[3].value.length} items`);
+      logger.info(`Tiingo fetch successful: ${results[3].value.length} items`);
       allRecords.push(...results[3].value);
     } else {
-      logger.warn('FinSignals fetch failed:', results[3].reason?.message);
+      logger.warn('Tiingo fetch failed:', results[3].reason?.message);
     }
 
     if (allRecords.length > 0) {
       await recordModel.saveManyRecords(allRecords);
       await cache.del('trending_all');
-      await cache.del('trending_finage');
+      await cache.del('trending_twelvedata');
       await cache.del('trending_kite');
       await cache.del('trending_alphavantage');
-      await cache.del('trending_finsignals');
+      await cache.del('trending_tiingo');
     }
 
     return { totalSaved: allRecords.length };
