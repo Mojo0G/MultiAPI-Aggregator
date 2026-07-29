@@ -25,7 +25,7 @@ async function ensureDatabaseExists() {
   } catch (err) {
     logger.warn('Database existence check warning:', err.message);
   } finally {
-    await client.end();
+    await client.end().catch(() => {});
   }
 }
 
@@ -44,9 +44,11 @@ async function runMigrations() {
     logger.info('All database migrations completed successfully!');
   } catch (err) {
     logger.error('Database migration failed:', err.message);
-  } finally {
-    await pool.end();
   }
 }
 
-runMigrations();
+if (require.main === module) {
+  runMigrations().then(() => pool.end());
+}
+
+module.exports = { runMigrations };
