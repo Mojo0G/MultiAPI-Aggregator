@@ -1,7 +1,6 @@
 const pool = require('../config/db');
 
 const recordModel = {
-    
   saveRecord: async (item) => {
     const query = `
       INSERT INTO aggregated_records (id, title, url, source, score, fetched_at, metadata)
@@ -41,7 +40,7 @@ const recordModel = {
   getTrending: async (source = null, limit = 50) => {
     if (source) {
       const query = `
-        SELECT * FROM aggregated_records 
+        SELECT id, title, url, source, score, fetched_at, metadata FROM aggregated_records 
         WHERE LOWER(source) = LOWER($1) 
         ORDER BY score DESC, fetched_at DESC 
         LIMIT $2
@@ -49,9 +48,15 @@ const recordModel = {
       const result = await pool.query(query, [source, limit]);
       return result.rows;
     } else {
+      // Fair Interleaved Aggregation across all sources using Window Functions
       const query = `
-        SELECT * FROM aggregated_records 
-        ORDER BY score DESC, fetched_at DESC 
+        WITH ranked_records AS (
+          SELECT *, ROW_NUMBER() OVER (PARTITION BY source ORDER BY score DESC, fetched_at DESC) as rnk
+          FROM aggregated_records
+        )
+        SELECT id, title, url, source, score, fetched_at, metadata
+        FROM ranked_records
+        ORDER BY rnk ASC, score DESC
         LIMIT $1
       `;
       const result = await pool.query(query, [limit]);
