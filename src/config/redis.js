@@ -8,7 +8,9 @@ const redis = new Redis({
   host: process.env.REDIS_HOST || 'localhost',
   port: parseInt(process.env.REDIS_PORT || '6379', 10),
   lazyConnect: true,
-  maxRetriesPerRequest: 1
+  enableOfflineQueue: false,
+  maxRetriesPerRequest: 1,
+  retryStrategy: () => null
 });
 
 redis.on('connect', () => {
@@ -17,11 +19,16 @@ redis.on('connect', () => {
 });
 
 redis.on('error', (err) => {
-  isRedisConnected = false;
-  logger.warn('Redis unavailable, using in-memory store fallback:', err.message);
+  if (isRedisConnected) {
+    isRedisConnected = false;
+    logger.warn('Redis unavailable, using in-memory store fallback:', err.message);
+  }
 });
 
-redis.connect().catch(() => {});
+redis.connect().catch((err) => {
+  isRedisConnected = false;
+  logger.warn('Redis not running locally. Falling back to in-memory cache.');
+});
 
 const cache = {
   get: async (key) => {
