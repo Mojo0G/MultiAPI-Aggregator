@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: multi-api-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: aggregator_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: multi-api-redis
+    ports:
+      - "6379:6379"
+
+  api:
+    build: .
+    container_name: multi-api-server
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=aggregator_db
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REFRESH_TOKEN=secret123
+    depends_on:
+      - postgres
+      - redis
+
+volumes:
+  pgdata:

@@ -1,0 +1,30 @@
+{
+  "name": "multi-api-aggregator",
+  "version": "1.0.0",
+  "description": "Multi-Source Data Aggregator API using Node.js, Express, PostgreSQL, and Redis",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "migrate": "node db/migrate.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "ioredis": "^5.3.2",
+    "pg": "^8.11.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": [
+    "nodejs",
+    "express",
+    "postgresql",
+    "redis",
+    "aggregator"
+  ],
+  "author": "",
+  "license": "MIT"
+}
