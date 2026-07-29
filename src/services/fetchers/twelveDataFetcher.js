@@ -11,49 +11,50 @@ async function fetchTwelveData() {
     throw new Error('Twelve Data rate limit reached and no cached real-time data available');
   }
 
-  logger.info('Fetching real-time market data from Twelve Data API...');
-  const apiKey = process.env.TWELVE_DATA_API_KEY;
-  if (!apiKey || apiKey === 'demo') {
-    logger.warn('TWELVE_DATA_API_KEY missing or set to demo');
-  }
-
-  const url = `https://api.twelvedata.com/quote?symbol=AAPL&apikey=${apiKey || 'demo'}`;
+  logger.info('Fetching broad market multi-company quotes from Twelve Data API...');
+  const apiKey = process.env.TWELVE_DATA_API_KEY || 'demo';
+  const symbols = 'AAPL,MSFT,GOOGL,AMZN,TSLA,NVDA,META,NFLX,AMD,INTC,IBM,ORCL,CSCO,DIS,NKE,BA,SPY,QQQ,BTC/USD,ETH/USD';
+  const url = `https://api.twelvedata.com/quote?symbol=${symbols}&apikey=${apiKey}`;
 
   try {
-    const response = await axios.get(url, { timeout: 5000 });
-    const item = response.data;
+    const response = await axios.get(url, { timeout: 8000 });
+    const payload = response.data;
+    const items = [];
 
-    if (item.code || item.status === 'error') {
-      throw new Error(`Twelve Data API error: ${item.message || JSON.stringify(item)}`);
-    }
+    const quotes = payload.symbol ? [payload] : Object.values(payload);
 
-    const price = parseFloat(item.close || item.price || item.previous_close);
-    if (isNaN(price)) {
-      throw new Error(`Invalid price payload from Twelve Data: ${JSON.stringify(item)}`);
-    }
+    for (const item of quotes) {
+      if (item && item.symbol && (item.close || item.price || item.previous_close)) {
+        const price = parseFloat(item.close || item.price || item.previous_close);
+        const percentChange = Math.abs(parseFloat(item.percent_change) || 0);
+        const calculatedScore = Math.round(price + percentChange * 10);
 
-    const realTimeData = [{
-      id: `twelvedata_${item.symbol || 'AAPL'}`,
-      title: `${item.name || item.symbol} Real-Time Quote`,
-      url: 'https://twelvedata.com',
-      source: 'twelvedata',
-      score: Math.round(price),
-      fetched_at: new Date().toISOString(),
-      metadata: {
-        symbol: item.symbol,
-        name: item.name,
-        exchange: item.exchange,
-        price: price,
-        open: parseFloat(item.open) || null,
-        high: parseFloat(item.high) || null,
-        low: parseFloat(item.low) || null,
-        volume: parseInt(item.volume || '0', 10),
-        currency: item.currency || 'USD'
+        items.push({
+          id: `twelvedata_${item.symbol}`,
+          title: `${item.name || item.symbol} (${item.symbol}) - Twelve Data Market Quote`,
+          url: 'https://twelvedata.com',
+          source: 'twelvedata',
+          score: calculatedScore,
+          fetched_at: new Date().toISOString(),
+          metadata: {
+            symbol: item.symbol,
+            name: item.name,
+            exchange: item.exchange,
+            price: price,
+            percentChange: item.percent_change,
+            volume: parseInt(item.volume || '0', 10),
+            currency: item.currency || 'USD'
+          }
+        });
       }
-    }];
+    }
 
-    await cache.set('last_valid_twelvedata', realTimeData, 86400);
-    return realTimeData;
+    if (items.length > 0) {
+      await cache.set('last_valid_twelvedata', items, 86400);
+      return items;
+    }
+
+    throw new Error(`Twelve Data API returned no valid company quotes`);
   } catch (err) {
     logger.warn('Twelve Data real-time fetch failed:', err.message);
     const cached = await cache.get('last_valid_twelvedata');

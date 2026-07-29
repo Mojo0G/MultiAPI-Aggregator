@@ -11,49 +11,50 @@ async function fetchFmpData() {
     throw new Error('FMP rate limit reached and no cached real-time data available');
   }
 
-  logger.info('Fetching real-time market data from Financial Modeling Prep (FMP) API...');
-  const apiKey = process.env.FMP_API_KEY;
-  if (!apiKey || apiKey === 'demo') {
-    logger.warn('FMP_API_KEY missing or set to demo');
-  }
-
-  const url = `https://financialmodelingprep.com/api/v3/quote/AAPL?apikey=${apiKey || 'demo'}`;
+  logger.info('Fetching broad market companies from Financial Modeling Prep (FMP) API...');
+  const apiKey = process.env.FMP_API_KEY || 'demo';
+  // FMP Stock Screener returns active market companies across the entire stock market
+  const url = `https://financialmodelingprep.com/api/v3/stock-screener?marketCapMoreThan=1000000000&limit=50&apikey=${apiKey}`;
 
   try {
-    const response = await axios.get(url, { timeout: 5000 });
-    const item = Array.isArray(response.data) ? response.data[0] : response.data;
+    const response = await axios.get(url, { timeout: 8000 });
+    const payload = Array.isArray(response.data) ? response.data : [];
+    const items = [];
 
-    if (!item || response.data['Error Message']) {
-      throw new Error(`FMP API error: ${response.data['Error Message'] || 'Empty payload'}`);
-    }
+    for (const item of payload) {
+      if (item && item.symbol && (item.price || item.marketCap)) {
+        const price = parseFloat(item.price || 0);
+        const percentChange = Math.abs(parseFloat(item.changesPercentage) || 0);
+        const calculatedScore = Math.round(price + percentChange * 10);
 
-    const price = parseFloat(item.price || item.previousClose);
-    if (isNaN(price)) {
-      throw new Error(`Invalid price payload from FMP: ${JSON.stringify(item)}`);
-    }
-
-    const realTimeData = [{
-      id: `fmp_${item.symbol || 'AAPL'}`,
-      title: `${item.name || item.symbol} Real-Time Quote`,
-      url: 'https://financialmodelingprep.com',
-      source: 'fmp',
-      score: Math.round(price),
-      fetched_at: new Date().toISOString(),
-      metadata: {
-        symbol: item.symbol,
-        name: item.name,
-        exchange: item.exchange,
-        price: price,
-        changesPercentage: item.changesPercentage,
-        change: item.change,
-        dayLow: item.dayLow,
-        dayHigh: item.dayHigh,
-        volume: item.volume
+        items.push({
+          id: `fmp_${item.symbol}`,
+          title: `${item.companyName || item.symbol} (${item.symbol}) - FMP Market Quote`,
+          url: 'https://financialmodelingprep.com',
+          source: 'fmp',
+          score: calculatedScore,
+          fetched_at: new Date().toISOString(),
+          metadata: {
+            symbol: item.symbol,
+            name: item.companyName || item.symbol,
+            exchange: item.exchangeShortName || item.exchange,
+            price: price,
+            changesPercentage: item.changesPercentage,
+            marketCap: item.marketCap,
+            volume: item.volume,
+            sector: item.sector,
+            industry: item.industry
+          }
+        });
       }
-    }];
+    }
 
-    await cache.set('last_valid_fmp', realTimeData, 86400);
-    return realTimeData;
+    if (items.length > 0) {
+      await cache.set('last_valid_fmp', items, 86400);
+      return items;
+    }
+
+    throw new Error(`FMP API stock screener returned no valid company quotes`);
   } catch (err) {
     logger.warn('FMP real-time fetch failed:', err.message);
     const cached = await cache.get('last_valid_fmp');
