@@ -1,7 +1,21 @@
 const axios = require('axios');
 const logger = require('../../utils/logger');
+const { fmpLimiter } = require('../../utils/apiRateLimiter');
 
 async function fetchFmpData() {
+  if (!fmpLimiter.canFetch()) {
+    logger.warn('FMP upstream rate limit reached. Returning fallback sample data.');
+    return [{
+      id: 'fmp_AAPL',
+      title: 'Apple Inc (AAPL) - FMP Quote (Rate Limited)',
+      url: 'https://financialmodelingprep.com',
+      source: 'fmp',
+      score: 185,
+      fetched_at: new Date().toISOString(),
+      metadata: { symbol: 'AAPL', name: 'Apple Inc', price: 185.5, volume: 40000000 }
+    }];
+  }
+
   logger.info('Fetching market data from Financial Modeling Prep (FMP) API...');
   const apiKey = process.env.FMP_API_KEY || 'demo';
   const url = `https://financialmodelingprep.com/api/v3/quote/AAPL?apikey=${apiKey}`;

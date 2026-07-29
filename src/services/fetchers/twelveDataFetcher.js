@@ -1,7 +1,21 @@
 const axios = require('axios');
 const logger = require('../../utils/logger');
+const { twelveDataLimiter } = require('../../utils/apiRateLimiter');
 
 async function fetchTwelveData() {
+  if (!twelveDataLimiter.canFetch()) {
+    logger.warn('Twelve Data upstream rate limit reached. Returning fallback sample data.');
+    return [{
+      id: 'twelvedata_AAPL',
+      title: 'Apple Inc (AAPL) - Twelve Data Quote (Rate Limited)',
+      url: 'https://twelvedata.com',
+      source: 'twelvedata',
+      score: 190,
+      fetched_at: new Date().toISOString(),
+      metadata: { symbol: 'AAPL', name: 'Apple Inc', exchange: 'NASDAQ', price: 190.25, volume: 45000000 }
+    }];
+  }
+
   logger.info('Fetching market data from Twelve Data API...');
   const apiKey = process.env.TWELVE_DATA_API_KEY || 'demo';
   const url = `https://api.twelvedata.com/quote?symbol=AAPL&apikey=${apiKey}`;
